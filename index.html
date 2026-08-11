@@ -300,7 +300,9 @@
         name: currentUserData.name, email: currentUserData.email, role: "admin",
         joinedAt: new Date().toISOString()
       });
-      await db.collection("Users").doc(currentUser.uid).update({ groupId: groupRef.id, role: "admin" });
+      await db.collection("Users").doc(currentUser.uid).set({
+        groupId: groupRef.id, role: "admin"
+      }, { merge: true });
       alert('"' + name + '" household created! Share the join code with your family.');
       await routeUser(currentUser);
     } catch (err) {
@@ -320,7 +322,9 @@
         name: currentUserData.name, email: currentUserData.email, role: "member",
         joinedAt: new Date().toISOString()
       });
-      await db.collection("Users").doc(currentUser.uid).update({ groupId: groupDoc.id, role: "member" });
+      await db.collection("Users").doc(currentUser.uid).set({
+        groupId: groupDoc.id, role: "member"
+      }, { merge: true });
       alert('Joined "' + groupDoc.data().name + '"!');
       await routeUser(currentUser);
     } catch (err) {
@@ -337,7 +341,17 @@
     currentUser = user;
     try {
       const snap = await db.collection("Users").doc(user.uid).get();
-      currentUserData = snap.exists ? snap.data() : { name: user.displayName || "User", email: user.email, groupId: null };
+      if (snap.exists) {
+        currentUserData = snap.data();
+      } else {
+        // Safety net: profile document was missing (e.g. an earlier save failed) — create it now.
+        currentUserData = {
+          name: user.displayName || "User", email: user.email,
+          preferredLanguage: "english", currency: "INR", groupId: null,
+          createdAt: new Date().toISOString()
+        };
+        await db.collection("Users").doc(user.uid).set(currentUserData);
+      }
     } catch (readErr) {
       currentUserData = { name: user.displayName || "User", email: user.email, groupId: null };
     }
