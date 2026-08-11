@@ -22,7 +22,7 @@
     color: var(--text);
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 16px;
   }
@@ -33,78 +33,67 @@
     width: 100%;
     max-width: 400px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    margin-top: 24px;
   }
-  h1 {
-    font-size: 22px;
-    text-align: center;
-    margin: 0 0 4px;
-  }
-  .subtitle {
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-    margin-bottom: 24px;
-  }
-  label {
-    display: block;
-    font-size: 14px;
-    font-weight: 600;
-    margin: 14px 0 6px;
-  }
+  h1 { font-size: 22px; text-align: center; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
   input {
-    width: 100%;
-    padding: 14px;
-    border-radius: 10px;
-    border: 1.5px solid #e2e8f0;
-    font-size: 16px;
+    width: 100%; padding: 14px; border-radius: 10px;
+    border: 1.5px solid #e2e8f0; font-size: 16px;
   }
   input:focus { outline: none; border-color: var(--primary); }
   button {
-    width: 100%;
-    padding: 15px;
-    border-radius: 10px;
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
-    margin-top: 20px;
-    cursor: pointer;
+    width: 100%; padding: 15px; border-radius: 10px; border: none;
+    font-size: 16px; font-weight: 600; margin-top: 20px; cursor: pointer;
   }
   .btn-primary { background: var(--primary); color: white; }
   .btn-secondary { background: transparent; color: var(--primary); margin-top: 10px; }
-  .msg {
-    font-size: 14px;
-    text-align: center;
-    margin-top: 14px;
-    min-height: 18px;
-  }
-  .msg.error { color: var(--error); }
-  .msg.success { color: var(--success); }
+  .btn-danger { background: #dc2626; color: white; }
   .hidden { display: none; }
   .profile-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid #f1f5f9;
-    font-size: 15px;
+    display: flex; justify-content: space-between; padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9; font-size: 15px;
   }
   .profile-row span:first-child { color: var(--muted); }
   .avatar {
-    width: 64px; height: 64px; border-radius: 50%;
-    background: var(--primary); color: white;
+    width: 64px; height: 64px; border-radius: 50%; background: var(--primary); color: white;
     display: flex; align-items: center; justify-content: center;
-    font-size: 26px; font-weight: 700;
-    margin: 0 auto 16px;
+    font-size: 26px; font-weight: 700; margin: 0 auto 16px;
   }
-  .loading { text-align: center; color: var(--muted); font-size: 14px; }
+  .divider { border: none; border-top: 1px solid #f1f5f9; margin: 20px 0; }
+  .link-btn {
+    background: none; border: none; color: var(--primary); font-size: 14px;
+    font-weight: 600; margin-top: 12px; padding: 0; cursor: pointer; width: auto;
+  }
+  .join-code-box {
+    background: #eff6ff; border: 1.5px dashed var(--primary); border-radius: 10px;
+    padding: 16px; text-align: center; margin: 16px 0;
+  }
+  .join-code-box .code { font-size: 28px; font-weight: 800; letter-spacing: 4px; color: var(--primary); }
+  .member-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .member-avatar {
+    width: 38px; height: 38px; border-radius: 50%; background: #e2e8f0; color: var(--text);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+  }
+  .member-info { flex: 1; }
+  .member-name { font-size: 15px; font-weight: 600; }
+  .member-role { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab {
+    flex: 1; text-align: center; padding: 10px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer; color: var(--muted); background: #f1f5f9;
+  }
+  .tab.active { background: var(--primary); color: white; }
 </style>
 </head>
 <body>
 
 <div class="card">
-
-  <div id="loadingView" class="hidden">
-    <div class="loading">Loading HomeBudget…</div>
-  </div>
 
   <div id="errorBanner" class="hidden" style="background:#fef2f2; border:1.5px solid #fecaca; color:#991b1b; padding:12px; border-radius:10px; font-size:13px; margin-bottom:16px;"></div>
 
@@ -118,7 +107,6 @@
     <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
     <button class="btn-primary" id="loginBtn">Log In</button>
     <button class="btn-secondary" id="showRegisterBtn">Don't have an account? Register</button>
-    <div class="msg" id="loginMsg"></div>
   </div>
 
   <!-- REGISTER VIEW -->
@@ -133,25 +121,62 @@
     <input type="password" id="regPassword" placeholder="At least 6 characters" autocomplete="new-password" />
     <button class="btn-primary" id="registerBtn">Create Account</button>
     <button class="btn-secondary" id="showLoginBtn">Already have an account? Log in</button>
-    <div class="msg" id="registerMsg"></div>
   </div>
 
-  <!-- PROFILE VIEW (shown after login) -->
+  <!-- ONBOARDING VIEW: create or join a household -->
+  <div id="onboardingView" class="hidden">
+    <h1>🏠 Almost there</h1>
+    <div class="subtitle">Create a new household, or join one with a code</div>
+    <div class="tabs">
+      <div class="tab active" id="tabCreate">Create Household</div>
+      <div class="tab" id="tabJoin">Join Household</div>
+    </div>
+
+    <div id="createGroupForm">
+      <label>Household Name</label>
+      <input type="text" id="groupName" placeholder="e.g. Khandelwal Family" />
+      <button class="btn-primary" id="createGroupBtn">Create Household</button>
+    </div>
+
+    <div id="joinGroupForm" class="hidden">
+      <label>Join Code</label>
+      <input type="text" id="joinCode" placeholder="e.g. AB12CD" style="text-transform:uppercase;" />
+      <button class="btn-primary" id="joinGroupBtn">Join Household</button>
+    </div>
+
+    <button class="link-btn" id="onboardingLogoutBtn" style="margin-top:24px;">Log out</button>
+  </div>
+
+  <!-- HOUSEHOLD VIEW -->
+  <div id="householdView" class="hidden">
+    <h1 id="householdName">Household</h1>
+    <div class="subtitle" id="householdMemberCount">Members</div>
+
+    <div class="join-code-box" id="joinCodeBox">
+      <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">Share this code with family</div>
+      <div class="code" id="householdJoinCode">------</div>
+    </div>
+
+    <h2>Members</h2>
+    <div id="membersList"></div>
+
+    <hr class="divider" />
+    <button class="btn-secondary" id="goToProfileBtn">My Profile</button>
+  </div>
+
+  <!-- PROFILE VIEW -->
   <div id="profileView" class="hidden">
     <div class="avatar" id="avatarInitial">M</div>
     <h1 id="profileName" style="text-align:center;">Name</h1>
     <div class="subtitle" style="text-align:center;" id="profileEmail">email@example.com</div>
     <div class="profile-row"><span>Preferred language</span><span>English</span></div>
     <div class="profile-row"><span>Currency</span><span>₹ INR</span></div>
-    <button class="btn-primary" id="logoutBtn" style="background:#dc2626;">Log Out</button>
-    <div class="msg" id="profileMsg"></div>
+    <button class="btn-secondary" id="goToHouseholdBtn">My Household</button>
+    <button class="btn-danger" id="logoutBtn">Log Out</button>
   </div>
 
 </div>
 
-<!-- Firebase SDKs: "compat" versions, loaded as plain scripts.
-     This works when the file is opened directly on a phone, unlike
-     the newer "module" style imports which browsers block for local files. -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js" crossorigin="anonymous" onerror="showLoadError()"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js" crossorigin="anonymous" onerror="showLoadError()"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js" crossorigin="anonymous" onerror="showLoadError()"></script>
@@ -162,19 +187,14 @@
     banner.textContent = "Couldn't connect to the internet to load HomeBudget. Please check your WiFi/mobile data and reopen this page.";
     banner.classList.remove("hidden");
   }
-
   window.onerror = function (message) {
     const banner = document.getElementById("errorBanner");
     banner.textContent = "Something went wrong: " + message;
     banner.classList.remove("hidden");
     return false;
   };
+  if (typeof firebase === "undefined") showLoadError();
 
-  if (typeof firebase === "undefined") {
-    showLoadError();
-  }
-
-  // Your Household project's connection details
   const firebaseConfig = {
     apiKey: "AIzaSyDcwU8BMWO66Uc5MDueLLOrunShPbn-W5g",
     authDomain: "household-d6f8e.firebaseapp.com",
@@ -196,59 +216,37 @@
   }
 
   const $ = (id) => document.getElementById(id);
+  let currentUser = null;
+  let currentUserData = null;
 
   function showView(view) {
-    ["loadingView", "loginView", "registerView", "profileView"].forEach(v => $(v).classList.add("hidden"));
+    ["loginView", "registerView", "onboardingView", "householdView", "profileView"].forEach(v => $(v).classList.add("hidden"));
     $(view).classList.remove("hidden");
   }
 
   $("showRegisterBtn").onclick = () => showView("registerView");
   $("showLoginBtn").onclick = () => showView("loginView");
 
-  async function loadProfileAndShowProfile(user) {
-    let data = { name: user.displayName || "User", email: user.email };
-    try {
-      const snap = await db.collection("Users").doc(user.uid).get();
-      if (snap.exists) data = snap.data();
-    } catch (readErr) {
-      console.log("Could not read profile, using basic info:", readErr);
-    }
-    $("profileName").textContent = data.name;
-    $("profileEmail").textContent = data.email;
-    $("avatarInitial").textContent = (data.name || "U").charAt(0).toUpperCase();
-    showView("profileView");
-  }
-
   // ---- REGISTER ----
   $("registerBtn").onclick = async () => {
     const name = $("regName").value.trim();
     const email = $("regEmail").value.trim();
     const password = $("regPassword").value;
-    const msg = $("registerMsg");
-    msg.className = "msg";
-    msg.textContent = "";
 
-    if (!name || !email || !password) {
-      alert("Please fill in all fields.");
-      return;
-    }
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
-      return;
-    }
+    if (!name || !email || !password) return alert("Please fill in all fields.");
+    if (password.length < 6) return alert("Password must be at least 6 characters.");
 
     try {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
       await cred.user.updateProfile({ displayName: name });
       try {
         await db.collection("Users").doc(cred.user.uid).set({
-          name, email, preferredLanguage: "english", currency: "INR", createdAt: new Date().toISOString()
+          name, email, preferredLanguage: "english", currency: "INR",
+          groupId: null, createdAt: new Date().toISOString()
         });
-      } catch (dbErr) {
-        console.log("Profile save issue:", dbErr);
-      }
-      alert("Account created successfully! Taking you to your profile now.");
-      await loadProfileAndShowProfile(cred.user);
+      } catch (dbErr) { console.log("Profile save issue:", dbErr); }
+      alert("Account created! Let's set up your household next.");
+      await routeUser(cred.user);
     } catch (err) {
       alert(friendlyError(err));
     }
@@ -258,34 +256,151 @@
   $("loginBtn").onclick = async () => {
     const email = $("loginEmail").value.trim();
     const password = $("loginPassword").value;
-
-    if (!email || !password) {
-      alert("Please enter your email and password.");
-      return;
-    }
-
+    if (!email || !password) return alert("Please enter your email and password.");
     try {
       const cred = await auth.signInWithEmailAndPassword(email, password);
-      await loadProfileAndShowProfile(cred.user);
+      await routeUser(cred.user);
     } catch (err) {
       alert(friendlyError(err));
     }
   };
 
-  // ---- LOGOUT ----
-  $("logoutBtn").onclick = async () => {
+  // ---- LOGOUT (from profile or onboarding) ----
+  async function doLogout() {
+    try { await auth.signOut(); currentUser = null; currentUserData = null; showView("loginView"); }
+    catch (err) { alert("Could not log out: " + (err.message || err)); }
+  }
+  $("logoutBtn").onclick = doLogout;
+  $("onboardingLogoutBtn").onclick = doLogout;
+
+  // ---- ONBOARDING TABS ----
+  $("tabCreate").onclick = () => {
+    $("tabCreate").classList.add("active");
+    $("tabJoin").classList.remove("active");
+    $("createGroupForm").classList.remove("hidden");
+    $("joinGroupForm").classList.add("hidden");
+  };
+  $("tabJoin").onclick = () => {
+    $("tabJoin").classList.add("active");
+    $("tabCreate").classList.remove("active");
+    $("joinGroupForm").classList.remove("hidden");
+    $("createGroupForm").classList.add("hidden");
+  };
+
+  // ---- CREATE HOUSEHOLD ----
+  $("createGroupBtn").onclick = async () => {
+    const name = $("groupName").value.trim();
+    if (!name) return alert("Please enter a household name.");
     try {
-      await auth.signOut();
-      alert("Logged out.");
+      const joinCode = generateJoinCode();
+      const groupRef = await db.collection("Groups").add({
+        name, createdBy: currentUser.uid, joinCode, createdAt: new Date().toISOString()
+      });
+      await groupRef.collection("members").doc(currentUser.uid).set({
+        name: currentUserData.name, email: currentUserData.email, role: "admin",
+        joinedAt: new Date().toISOString()
+      });
+      await db.collection("Users").doc(currentUser.uid).update({ groupId: groupRef.id, role: "admin" });
+      alert('"' + name + '" household created! Share the join code with your family.');
+      await routeUser(currentUser);
     } catch (err) {
-      alert("Could not log out: " + (err.message || err));
+      alert("Could not create household: " + (err.message || err));
     }
   };
 
-  // ---- Watch login state and show the right screen ----
+  // ---- JOIN HOUSEHOLD ----
+  $("joinGroupBtn").onclick = async () => {
+    const code = $("joinCode").value.trim().toUpperCase();
+    if (!code) return alert("Please enter a join code.");
+    try {
+      const query = await db.collection("Groups").where("joinCode", "==", code).limit(1).get();
+      if (query.empty) return alert("No household found with that code. Please check and try again.");
+      const groupDoc = query.docs[0];
+      await groupDoc.ref.collection("members").doc(currentUser.uid).set({
+        name: currentUserData.name, email: currentUserData.email, role: "member",
+        joinedAt: new Date().toISOString()
+      });
+      await db.collection("Users").doc(currentUser.uid).update({ groupId: groupDoc.id, role: "member" });
+      alert('Joined "' + groupDoc.data().name + '"!');
+      await routeUser(currentUser);
+    } catch (err) {
+      alert("Could not join household: " + (err.message || err));
+    }
+  };
+
+  // ---- NAVIGATION BUTTONS ----
+  $("goToProfileBtn").onclick = () => showProfileView();
+  $("goToHouseholdBtn").onclick = () => showHouseholdView();
+
+  // ---- ROUTER: decide which screen to land on after login/register ----
+  async function routeUser(user) {
+    currentUser = user;
+    try {
+      const snap = await db.collection("Users").doc(user.uid).get();
+      currentUserData = snap.exists ? snap.data() : { name: user.displayName || "User", email: user.email, groupId: null };
+    } catch (readErr) {
+      currentUserData = { name: user.displayName || "User", email: user.email, groupId: null };
+    }
+    if (currentUserData.groupId) {
+      await showHouseholdView();
+    } else {
+      showView("onboardingView");
+    }
+  }
+
+  function showProfileView() {
+    $("profileName").textContent = currentUserData.name;
+    $("profileEmail").textContent = currentUserData.email;
+    $("avatarInitial").textContent = (currentUserData.name || "U").charAt(0).toUpperCase();
+    showView("profileView");
+  }
+
+  async function showHouseholdView() {
+    if (!currentUserData.groupId) { showView("onboardingView"); return; }
+    try {
+      const groupSnap = await db.collection("Groups").doc(currentUserData.groupId).get();
+      if (!groupSnap.exists) { showView("onboardingView"); return; }
+      const group = groupSnap.data();
+      $("householdName").textContent = "🏠 " + group.name;
+      $("householdJoinCode").textContent = group.joinCode;
+
+      const membersSnap = await db.collection("Groups").doc(currentUserData.groupId).collection("members").get();
+      const list = $("membersList");
+      list.innerHTML = "";
+      $("householdMemberCount").textContent = membersSnap.size + (membersSnap.size === 1 ? " member" : " members");
+      membersSnap.forEach(doc => {
+        const m = doc.data();
+        const row = document.createElement("div");
+        row.className = "member-row";
+        row.innerHTML =
+          '<div class="member-avatar">' + (m.name || "U").charAt(0).toUpperCase() + '</div>' +
+          '<div class="member-info"><div class="member-name">' + escapeHtml(m.name) + '</div>' +
+          '<div class="member-role">' + escapeHtml(m.role) + '</div></div>';
+        list.appendChild(row);
+      });
+      showView("householdView");
+    } catch (err) {
+      alert("Could not load household: " + (err.message || err));
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str || "";
+    return div.innerHTML;
+  }
+
+  function generateJoinCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusing O/0/I/1
+    let code = "";
+    for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+    return code;
+  }
+
+  // ---- Watch login state on page load ----
   auth.onAuthStateChanged(async (user) => {
     if (user) {
-      await loadProfileAndShowProfile(user);
+      await routeUser(user);
     } else {
       showView("loginView");
     }
