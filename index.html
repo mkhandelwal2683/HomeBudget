@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#2563eb" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
 <title>HomeBudget</title>
 <style>
   :root {
@@ -143,9 +147,22 @@
   select {
     width: 100%; padding: 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 16px; background: white;
   }
+  .connectivity-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 40; text-align: center;
+    font-size: 13px; font-weight: 600; padding: 8px; color: white; transition: transform 0.3s;
+  }
+  .connectivity-banner.online { background: #16a34a; }
+  .connectivity-banner.offline { background: #f59e0b; }
+  .connectivity-banner.hide { transform: translateY(-100%); }
+  .pending-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; color: #f59e0b;
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 1px 6px; margin-left: 6px;
+  }
 </style>
 </head>
 <body>
+
+<div class="connectivity-banner hide" id="connectivityBanner">🟢 Back online — syncing…</div>
 
 <div class="card">
 
@@ -212,6 +229,17 @@
       <div style="font-size:13px; font-weight:600;" id="dashCompare">—</div>
     </div>
 
+    <div id="dashBudgetBox" class="hidden" style="background:#fff7ed; border:1px solid #fed7aa; border-radius:14px; padding:14px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--muted);">
+        <span>Budget</span><span id="dashBudgetPct">0%</span>
+      </div>
+      <div style="font-size:16px; font-weight:700; margin:4px 0;" id="dashBudgetAmounts">₹0 / ₹0</div>
+      <div style="background:#e2e8f0; border-radius:6px; height:8px; overflow:hidden;">
+        <div id="dashBudgetBar" style="height:100%; width:0%; background:var(--primary);"></div>
+      </div>
+      <div style="font-size:12px; margin-top:6px;" id="dashBudgetWarning"></div>
+    </div>
+
     <div class="row-2" style="margin-bottom:10px;">
       <div class="profile-row" style="flex-direction:column; align-items:flex-start; border:1px solid #f1f5f9; border-radius:10px; padding:12px;">
         <span style="font-size:12px;">Today</span>
@@ -238,6 +266,8 @@
     <div id="expensesList"><div class="empty-state">No expenses yet. Tap + to add one.</div></div>
 
     <hr class="divider" />
+    <button class="btn-secondary" id="goToBudgetsBtn">💰 Budgets</button>
+    <button class="btn-secondary" id="goToBalancesBtn">⚖️ Balances</button>
     <button class="btn-secondary" id="goToReportsBtn">📊 Reports</button>
     <button class="btn-secondary" id="goToHouseholdFromDashBtn">👥 Household</button>
     <button class="btn-secondary" id="goToProfileBtn">My Profile</button>
@@ -288,6 +318,43 @@
     <button class="btn-secondary" id="goToDashboardFromReportsBtn">🏠 Home</button>
   </div>
 
+  <!-- BUDGETS VIEW -->
+  <div id="budgetsView" class="hidden">
+    <h1>💰 Budgets</h1>
+    <div class="subtitle">Set monthly limits for your household</div>
+
+    <div style="background:#eff6ff; border-radius:14px; padding:16px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:12px; color:var(--muted);">Household Budget (this month)</div>
+          <div style="font-size:20px; font-weight:800;" id="householdBudgetAmount">Not set</div>
+        </div>
+        <button id="editHouseholdBudgetBtn" class="link-btn hidden" style="margin:0;">Edit</button>
+      </div>
+      <div style="background:#e2e8f0; border-radius:6px; height:10px; margin-top:10px; overflow:hidden;">
+        <div id="householdBudgetBar" style="background:var(--primary); height:100%; width:0%;"></div>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-top:6px;" id="householdBudgetStatus"></div>
+    </div>
+
+    <h2>Category Budgets</h2>
+    <div id="categoryBudgetsList"></div>
+    <button class="btn-secondary hidden" id="addCategoryBudgetBtn">+ Add Category Budget</button>
+
+    <hr class="divider" />
+    <button class="btn-secondary" id="goToDashboardFromBudgetsBtn">🏠 Home</button>
+  </div>
+
+  <!-- BALANCES VIEW -->
+  <div id="balancesView" class="hidden">
+    <h1>⚖️ Balances</h1>
+    <div class="subtitle">Shared expenses this month — who owes what</div>
+    <div id="balancesList"></div>
+
+    <hr class="divider" />
+    <button class="btn-secondary" id="goToDashboardFromBalancesBtn">🏠 Home</button>
+  </div>
+
 
   <!-- ADD EXPENSE VIEW -->
   <div id="addExpenseView" class="hidden">
@@ -331,8 +398,14 @@
         <select id="confType">
           <option value="individual">Individual</option>
           <option value="group">Group</option>
+          <option value="shared">Shared</option>
         </select>
       </div>
+    </div>
+
+    <div id="sharedParticipantsSection" class="hidden">
+      <label>Split between</label>
+      <div id="participantsCheckboxes"></div>
     </div>
 
     <button class="btn-primary" id="saveExpenseBtn">Save Expense</button>
@@ -398,11 +471,40 @@
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db = firebase.firestore();
+    // Enable offline support: expenses added with no connection are queued
+    // locally and sync automatically once the connection returns.
+    db.enablePersistence({ synchronizeTabs: true }).catch((persistErr) => {
+      console.log("Offline persistence not enabled:", persistErr.code);
+      // Common on some browsers/older Android WebViews — app still works, just without offline caching.
+    });
   } catch (initErr) {
     const banner = document.getElementById("errorBanner");
     banner.textContent = "Setup error: " + (initErr && initErr.message ? initErr.message : initErr);
     banner.classList.remove("hidden");
   }
+
+  // Register the service worker so the app shell can load even with no connection.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((err) => console.log("Service worker registration failed:", err));
+    });
+  }
+
+  // ---- Connectivity banner ----
+  function updateConnectivityBanner(isOnline) {
+    const banner = $("connectivityBanner");
+    if (isOnline) {
+      banner.textContent = "🟢 Back online — syncing…";
+      banner.className = "connectivity-banner online";
+      setTimeout(() => banner.classList.add("hide"), 2500);
+    } else {
+      banner.textContent = "🟠 You're offline — changes are saved on your phone and will sync automatically";
+      banner.className = "connectivity-banner offline";
+    }
+  }
+  window.addEventListener("online", () => updateConnectivityBanner(true));
+  window.addEventListener("offline", () => updateConnectivityBanner(false));
+  if (!navigator.onLine) updateConnectivityBanner(false);
 
   const $ = (id) => document.getElementById(id);
   let currentUser = null;
@@ -411,6 +513,10 @@
   let parsedExpenseCategory = null;
   let editingExpenseId = null;
   let actionSheetExpense = null; // { id, ref, data }
+  let currentMonthKey = null;
+  let currentBudgets = {};
+  let currentCatSpend = {};
+  let currentTotalSpend = 0;
 
   const CATEGORIES = [
     { id: "groceries", label: "Groceries", icon: "🛒", keywords: ["grocery", "groceries", "kirana", "किराना"] },
@@ -506,6 +612,30 @@
     select.value = currentUser.uid;
   }
 
+  function toggleSharedSection() {
+    const isShared = $("confType").value === "shared";
+    $("sharedParticipantsSection").classList.toggle("hidden", !isShared);
+  }
+  $("confType").onchange = toggleSharedSection;
+
+  function renderParticipantCheckboxes(selectedIds) {
+    const container = $("participantsCheckboxes");
+    container.innerHTML = "";
+    householdMembers.forEach(m => {
+      const checked = !selectedIds || selectedIds.includes(m.id);
+      const row = document.createElement("label");
+      row.style.cssText = "display:flex; align-items:center; gap:10px; padding:8px 0; font-size:14px;";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = m.id;
+      cb.checked = checked;
+      cb.style.cssText = "width:18px; height:18px;";
+      row.appendChild(cb);
+      row.appendChild(document.createTextNode(m.name));
+      container.appendChild(row);
+    });
+  }
+
   // ---- ADD EXPENSE FLOW ----
   $("addExpenseFab").onclick = () => {
     editingExpenseId = null;
@@ -531,6 +661,8 @@
     renderCategoryGrid(parsed.category);
     populatePaidBySelect();
     $("confType").value = "individual";
+    renderParticipantCheckboxes();
+    toggleSharedSection();
     showView("confirmExpenseView");
   };
 
@@ -556,8 +688,19 @@
       category: parsedExpenseCategory || "other",
       expenseType,
       paidById: paidBy,
-      paidByName: paidByMember ? paidByMember.name : "Unknown"
+      paidByName: paidByMember ? paidByMember.name : "Unknown",
+      participants: null
     };
+
+    if (expenseType === "shared") {
+      const checked = Array.from($("participantsCheckboxes").querySelectorAll("input[type=checkbox]:checked")).map(cb => cb.value);
+      if (checked.length === 0) return alert("Please select at least one person to split this expense with.");
+      const share = Math.round((amount / checked.length) * 100) / 100;
+      expenseData.participants = checked.map(id => {
+        const m = householdMembers.find(hm => hm.id === id);
+        return { id, name: m ? m.name : "Unknown", share };
+      });
+    }
 
     try {
       if (editingExpenseId) {
@@ -589,7 +732,7 @@
       }
       // Collect and do a stable secondary sort by createdAt within the same date.
       const items = [];
-      snap.forEach(doc => items.push({ id: doc.id, ref: doc.ref, data: doc.data() }));
+      snap.forEach(doc => items.push({ id: doc.id, ref: doc.ref, data: doc.data(), pending: doc.metadata.hasPendingWrites }));
       items.sort((a, b) => {
         if (a.data.date !== b.data.date) return a.data.date < b.data.date ? 1 : -1;
         return (b.data.createdAt || "").localeCompare(a.data.createdAt || "");
@@ -623,8 +766,8 @@
         row.innerHTML =
           '<div class="expense-icon">' + cat.icon + '</div>' +
           '<div class="expense-info">' +
-            '<div class="expense-desc">' + escapeHtml(e.description) + '</div>' +
-            '<div class="expense-meta">' + escapeHtml(e.paidByName) + '</div>' +
+            '<div class="expense-desc">' + escapeHtml(e.description) + (item.pending ? '<span class="pending-badge">Waiting to sync</span>' : '') + '</div>' +
+            '<div class="expense-meta">' + escapeHtml(e.paidByName) + (e.expenseType === "shared" && e.participants ? ' · Split ' + e.participants.length + ' ways' : '') + '</div>' +
           '</div>' +
           '<div class="expense-amount">₹' + e.amount.toLocaleString('en-IN') + '</div>';
         row.onclick = () => openExpenseActions(item);
@@ -673,11 +816,13 @@
     populatePaidBySelect();
     $("confPaidBy").value = e.paidById;
     $("confType").value = e.expenseType || "individual";
+    renderParticipantCheckboxes(e.participants ? e.participants.map(p => p.id) : null);
+    toggleSharedSection();
     showView("confirmExpenseView");
   };
 
   function showView(view) {
-    ["loginView", "registerView", "onboardingView", "dashboardView", "householdView", "reportsView", "profileView", "addExpenseView", "confirmExpenseView"].forEach(v => $(v).classList.add("hidden"));
+    ["loginView", "registerView", "onboardingView", "dashboardView", "householdView", "reportsView", "budgetsView", "balancesView", "profileView", "addExpenseView", "confirmExpenseView"].forEach(v => $(v).classList.add("hidden"));
     $(view).classList.remove("hidden");
     $("expenseActionOverlay").classList.add("hidden");
     if (view === "dashboardView") {
@@ -803,6 +948,10 @@
   $("goToDashboardFromHouseholdBtn").onclick = () => showDashboardView();
   $("goToReportsBtn").onclick = () => showReportsView();
   $("goToDashboardFromReportsBtn").onclick = () => showDashboardView();
+  $("goToBudgetsBtn").onclick = () => showBudgetsView();
+  $("goToDashboardFromBudgetsBtn").onclick = () => showDashboardView();
+  $("goToBalancesBtn").onclick = () => showBalancesView();
+  $("goToDashboardFromBalancesBtn").onclick = () => showDashboardView();
 
   // ---- ROUTER: decide which screen to land on after login/register ----
   async function routeUser(user) {
@@ -908,11 +1057,13 @@
       const prevMonthStartStr = toDateStr(new Date(today.getFullYear(), today.getMonth() - 1, 1));
 
       const expensesRef = db.collection("Groups").doc(currentUserData.groupId).collection("expenses");
-      const [todaySnap, weekSnap, monthSnap, prevMonthSnap] = await Promise.all([
+      const monthKeyStr = today.getFullYear() + "-" + pad2(today.getMonth() + 1);
+      const [todaySnap, weekSnap, monthSnap, prevMonthSnap, budgetsSnap] = await Promise.all([
         expensesRef.where("date", "==", todayStr).get(),
         expensesRef.where("date", ">=", weekStartStr).where("date", "<=", todayStr).get(),
         expensesRef.where("date", ">=", monthStartStr).where("date", "<", nextMonthStartStr).get(),
-        expensesRef.where("date", ">=", prevMonthStartStr).where("date", "<", monthStartStr).get()
+        expensesRef.where("date", ">=", prevMonthStartStr).where("date", "<", monthStartStr).get(),
+        db.collection("Groups").doc(currentUserData.groupId).collection("budgets").where("monthKey", "==", monthKeyStr).get()
       ]);
 
       const sumAll = (snap) => { let t = 0; snap.forEach(d => t += (d.data().amount || 0)); return t; };
@@ -936,6 +1087,37 @@
       } else {
         compareEl.textContent = "No spending recorded last month";
         compareEl.style.color = "#64748b";
+      }
+
+      // --- Budget summary box ---
+      const budgetsMap = {};
+      budgetsSnap.forEach(d => { budgetsMap[d.data().category] = d.data().amount; });
+      const overallBudget = budgetsMap["overall"];
+      if (overallBudget) {
+        const catSpendDash = {};
+        monthSnap.forEach(d => { const e = d.data(); catSpendDash[e.category] = (catSpendDash[e.category] || 0) + (e.amount || 0); });
+        let nearLimitCount = 0;
+        Object.keys(budgetsMap).forEach(catId => {
+          if (catId === "overall") return;
+          const spent = catSpendDash[catId] || 0;
+          if (spent / budgetsMap[catId] >= 0.8) nearLimitCount++;
+        });
+        const pct = Math.min(100, Math.round((monthTotal / overallBudget) * 100));
+        $("dashBudgetBox").classList.remove("hidden");
+        $("dashBudgetPct").textContent = pct + "%";
+        $("dashBudgetAmounts").textContent = "₹" + monthTotal.toLocaleString('en-IN') + " / ₹" + overallBudget.toLocaleString('en-IN');
+        $("dashBudgetBar").style.width = pct + "%";
+        $("dashBudgetBar").style.background = pct >= 100 ? "#dc2626" : pct >= 80 ? "#f59e0b" : "#2563eb";
+
+        const warnings = [];
+        if (monthTotal >= overallBudget) warnings.push("⚠️ Budget exceeded");
+        else if (pct >= 80) warnings.push("⚠️ Nearing overall budget");
+        if (nearLimitCount > 0) {
+          warnings.push("⚠️ " + nearLimitCount + " categor" + (nearLimitCount === 1 ? "y" : "ies") + " near their limit");
+        }
+        $("dashBudgetWarning").innerHTML = warnings.join("<br>");
+      } else {
+        $("dashBudgetBox").classList.add("hidden");
       }
 
       showView("dashboardView");
@@ -1055,6 +1237,190 @@
       data: { labels, datasets: [{ label: "Daily spending", data: values, borderColor: "#2563eb", backgroundColor: "rgba(37,99,235,0.12)", fill: true, tension: 0.3, pointRadius: 2 }] },
       options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, maintainAspectRatio: false }
     });
+  }
+
+  // ---- BUDGETS ----
+  async function showBudgetsView() {
+    if (!currentUserData.groupId) { showView("onboardingView"); return; }
+    try {
+      const today = new Date();
+      currentMonthKey = today.getFullYear() + "-" + pad2(today.getMonth() + 1);
+      const monthStartStr = toDateStr(new Date(today.getFullYear(), today.getMonth(), 1));
+      const nextMonthStartStr = toDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 1));
+
+      const budgetsSnap = await db.collection("Groups").doc(currentUserData.groupId)
+        .collection("budgets").where("monthKey", "==", currentMonthKey).get();
+      currentBudgets = {};
+      budgetsSnap.forEach(d => { currentBudgets[d.data().category] = d.data().amount; });
+
+      const expensesRef = db.collection("Groups").doc(currentUserData.groupId).collection("expenses");
+      const monthSnap = await expensesRef.where("date", ">=", monthStartStr).where("date", "<", nextMonthStartStr).get();
+      currentCatSpend = {};
+      currentTotalSpend = 0;
+      monthSnap.forEach(d => {
+        const e = d.data();
+        currentCatSpend[e.category] = (currentCatSpend[e.category] || 0) + (e.amount || 0);
+        currentTotalSpend += (e.amount || 0);
+      });
+
+      renderHouseholdBudget();
+      renderCategoryBudgets();
+      showView("budgetsView");
+    } catch (err) {
+      alert("Could not load budgets: " + (err.message || err));
+    }
+  }
+
+  function renderHouseholdBudget() {
+    const overall = currentBudgets["overall"];
+    const isAdmin = currentUserData.role === "admin";
+    $("editHouseholdBudgetBtn").classList.toggle("hidden", !isAdmin);
+    if (!overall) {
+      $("householdBudgetAmount").textContent = "Not set";
+      $("householdBudgetBar").style.width = "0%";
+      $("householdBudgetStatus").textContent = isAdmin ? "Tap Edit to set a monthly limit" : "Not set by admin yet";
+      return;
+    }
+    const pct = Math.min(100, Math.round((currentTotalSpend / overall) * 100));
+    $("householdBudgetAmount").textContent = "₹" + currentTotalSpend.toLocaleString('en-IN') + " / ₹" + overall.toLocaleString('en-IN');
+    $("householdBudgetBar").style.width = pct + "%";
+    $("householdBudgetBar").style.background = pct >= 100 ? "#dc2626" : pct >= 80 ? "#f59e0b" : "#2563eb";
+    $("householdBudgetStatus").textContent = pct + "% used" + (pct >= 100 ? " — budget exceeded ⚠️" : pct >= 80 ? " — nearing limit" : "");
+  }
+
+  function renderCategoryBudgets() {
+    const list = $("categoryBudgetsList");
+    list.innerHTML = "";
+    const isAdmin = currentUserData.role === "admin";
+    $("addCategoryBudgetBtn").classList.toggle("hidden", !isAdmin);
+    const catIds = Object.keys(currentBudgets).filter(k => k !== "overall");
+    if (catIds.length === 0) {
+      list.innerHTML = '<div class="empty-state">No category budgets set yet.</div>';
+      return;
+    }
+    catIds.forEach(catId => {
+      const budget = currentBudgets[catId];
+      const spend = currentCatSpend[catId] || 0;
+      const pct = Math.min(100, Math.round((spend / budget) * 100));
+      const cat = getCategory(catId);
+      const row = document.createElement("div");
+      row.style.marginBottom = "14px";
+      if (isAdmin) row.style.cursor = "pointer";
+      row.innerHTML =
+        '<div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:4px;">' +
+        '<span>' + cat.icon + ' ' + cat.label + '</span>' +
+        '<span style="font-weight:600;">₹' + spend.toLocaleString('en-IN') + ' / ₹' + budget.toLocaleString('en-IN') + '</span>' +
+        '</div>' +
+        '<div style="background:#e2e8f0; border-radius:6px; height:8px; overflow:hidden;">' +
+        '<div style="background:' + (pct >= 100 ? '#dc2626' : pct >= 80 ? '#f59e0b' : '#2563eb') + '; height:100%; width:' + pct + '%;"></div>' +
+        '</div>';
+      if (isAdmin) row.onclick = () => editCategoryBudget(catId, budget);
+      list.appendChild(row);
+    });
+  }
+
+  $("editHouseholdBudgetBtn").onclick = async () => {
+    if (currentUserData.role !== "admin") return alert("Only the household admin can set the budget.");
+    const current = currentBudgets["overall"] || "";
+    const input = prompt("Set household budget for this month (₹):", current);
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (!amount || amount <= 0) return alert("Please enter a valid amount.");
+    try {
+      await db.collection("Groups").doc(currentUserData.groupId).collection("budgets")
+        .doc(currentMonthKey + "_overall").set({
+          category: "overall", amount, monthKey: currentMonthKey, updatedAt: new Date().toISOString()
+        });
+      currentBudgets["overall"] = amount;
+      renderHouseholdBudget();
+      alert("Household budget saved ✓");
+    } catch (err) {
+      alert("Could not save budget: " + (err.message || err));
+    }
+  };
+
+  $("addCategoryBudgetBtn").onclick = () => {
+    if (currentUserData.role !== "admin") return alert("Only the household admin can set budgets.");
+    const catInput = prompt("Which category? Type its name exactly:\n\n" + CATEGORIES.map(c => c.label).join(", "));
+    if (catInput === null) return;
+    const match = CATEGORIES.find(c => c.label.toLowerCase() === catInput.trim().toLowerCase());
+    if (!match) return alert('Category not recognized. Please type it exactly as shown, e.g. "Groceries".');
+    editCategoryBudget(match.id, currentBudgets[match.id] || "");
+  };
+
+  async function editCategoryBudget(catId, currentAmount) {
+    if (currentUserData.role !== "admin") return alert("Only the household admin can set budgets.");
+    const cat = getCategory(catId);
+    const input = prompt("Set monthly budget for " + cat.label + " (₹):", currentAmount || "");
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (!amount || amount <= 0) return alert("Please enter a valid amount.");
+    try {
+      await db.collection("Groups").doc(currentUserData.groupId).collection("budgets")
+        .doc(currentMonthKey + "_" + catId).set({
+          category: catId, amount, monthKey: currentMonthKey, updatedAt: new Date().toISOString()
+        });
+      currentBudgets[catId] = amount;
+      renderCategoryBudgets();
+      alert(cat.label + " budget saved ✓");
+    } catch (err) {
+      alert("Could not save budget: " + (err.message || err));
+    }
+  }
+
+  // ---- BALANCES (shared expenses) ----
+  async function showBalancesView() {
+    if (!currentUserData.groupId) { showView("onboardingView"); return; }
+    try {
+      await loadHouseholdMembers();
+      const today = new Date();
+      const monthStartStr = toDateStr(new Date(today.getFullYear(), today.getMonth(), 1));
+      const nextMonthStartStr = toDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 1));
+
+      const expensesRef = db.collection("Groups").doc(currentUserData.groupId).collection("expenses");
+      const monthSnap = await expensesRef.where("date", ">=", monthStartStr).where("date", "<", nextMonthStartStr).get();
+
+      const balances = {};
+      householdMembers.forEach(m => { balances[m.id] = 0; });
+      let hasShared = false;
+
+      monthSnap.forEach(doc => {
+        const e = doc.data();
+        if (e.expenseType !== "shared" || !e.participants) return;
+        hasShared = true;
+        if (balances[e.paidById] === undefined) balances[e.paidById] = 0;
+        balances[e.paidById] += e.amount;
+        e.participants.forEach(p => {
+          if (balances[p.id] === undefined) balances[p.id] = 0;
+          balances[p.id] -= p.share;
+        });
+      });
+
+      const list = $("balancesList");
+      list.innerHTML = "";
+      if (!hasShared) {
+        list.innerHTML = '<div class="empty-state">No shared expenses this month yet. Use expense type "Shared" when adding one.</div>';
+      } else {
+        householdMembers.forEach(m => {
+          const net = Math.round((balances[m.id] || 0) * 100) / 100;
+          let statusText, color;
+          if (net > 0.5) { statusText = "is owed ₹" + net.toLocaleString('en-IN'); color = "#16a34a"; }
+          else if (net < -0.5) { statusText = "owes ₹" + Math.abs(net).toLocaleString('en-IN'); color = "#dc2626"; }
+          else { statusText = "settled up"; color = "#64748b"; }
+
+          const row = document.createElement("div");
+          row.className = "member-row";
+          row.innerHTML =
+            '<div class="member-avatar">' + (m.name || "U").charAt(0).toUpperCase() + '</div>' +
+            '<div class="member-info"><div class="member-name">' + escapeHtml(m.name) + '</div>' +
+            '<div class="member-role" style="color:' + color + ';">' + statusText + '</div></div>';
+          list.appendChild(row);
+        });
+      }
+      showView("balancesView");
+    } catch (err) {
+      alert("Could not load balances: " + (err.message || err));
+    }
   }
 
   function escapeHtml(str) {
