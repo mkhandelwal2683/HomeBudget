@@ -3,8 +3,11 @@
 // Your actual expense data is handled separately by Firestore's own offline
 // storage (see the enablePersistence() call in index.html) — this file just
 // makes sure the app itself loads without a connection.
+//
+// IMPORTANT: bump CACHE_NAME (e.g. v2, v3...) any time you want to force
+// everyone's phone to pick up a fresh copy instead of a saved one.
 
-const CACHE_NAME = "homebudget-shell-v1";
+const CACHE_NAME = "homebudget-shell-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -29,16 +32,22 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// App shell: cache-first (so the app opens instantly and works offline).
-// Everything else (Firebase, Chart.js, etc.) goes to the network as normal —
-// we don't want to accidentally cache your live expense data here.
+// App shell: network-first. Always try to fetch the latest version first,
+// so updates show up immediately when you have internet. Only fall back to
+// the saved copy if the network request fails (i.e. you're actually offline).
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   const isShellFile = url.origin === self.location.origin;
 
   if (isShellFile) {
     event.respondWith(
-      caches.match(event.request).then((cached) => cached || fetch(event.request))
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
   }
 });
