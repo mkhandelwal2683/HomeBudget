@@ -490,6 +490,8 @@
     });
   }
 
+  const $ = (id) => document.getElementById(id);
+
   // ---- Connectivity banner ----
   function updateConnectivityBanner(isOnline) {
     const banner = $("connectivityBanner");
@@ -506,7 +508,6 @@
   window.addEventListener("offline", () => updateConnectivityBanner(false));
   if (!navigator.onLine) updateConnectivityBanner(false);
 
-  const $ = (id) => document.getElementById(id);
   let currentUser = null;
   let currentUserData = null;
   let householdMembers = [];
